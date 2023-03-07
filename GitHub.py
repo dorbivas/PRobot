@@ -1,6 +1,6 @@
 from github import Github
 
-key = "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"
+key = "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"
 
 class GitHubHandler:
 
@@ -25,7 +25,7 @@ class GitHubHandler:
 
 def test():
     github = GitHubHandler(key)
-    mycommit = github.get_commit("PRobot", "c99eba24f6692eb358ca61673d1e752ff4c86636")
+    mycommit = github.get_commit("PRobot", "8ba8034d242d298d46687814eae34c0f2a238c48")
     diff = mycommit.files[0].patch
     print(diff)
     #print commit message
