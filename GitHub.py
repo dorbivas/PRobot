@@ -1,6 +1,6 @@
 from github import Github
 
-key = "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"
+key = "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"
 
 class GitHubHandler:
 
