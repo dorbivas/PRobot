@@ -1,32 +1,35 @@
 from github import Github
 
-key = "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"
+key = "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"
 
 class GitHubHandler:
 
     def __init__(self, api_key):
-        self.token = Github(api_key)
+        self.data = Github(api_key)
+        self.repo = self.data.get_user().get_repo("PRobot")
         #test conectivity
 
 
     def get_pull_request(self, repo_name, pull_request_number):
-        repo = self.token.get_repo(repo_name)
+        repo = self.data.get_repo(repo_name)
         return repo.get_pull(pull_request_number)
 
     def add_comment(self, repo_name, pull_request_number, comment):
-        pull_request = self.get_pull_request(repo_name, pull_request_number)
-        pull_request.create_issue_comment(comment)
+        pull = self.repo.get_pull(pull_request_number)
+        pull.create_issue_comment(comment)
 
     def get_commit(self, repo_name, commit_sha):
-        repo = self.token.get_user().get_repo(repo_name)
-        return repo.get_commit(commit_sha)
+        return self.repo.get_commit(commit_sha)
+
 
 
 def test():
     github = GitHubHandler(key)
-    mycommit = github.get_commit("PRobot", "71dad601a0f1d59c14927ce5ffdea6ed71ee3cbb")
+    mycommit = github.get_commit("PRobot", "c99eba24f6692eb358ca61673d1e752ff4c86636")
+    diff = mycommit.files[0].patch
+    print(diff)
     #print commit message
-    print(mycommit.commit.message)
+    #print(mycommit.commit.message)
 
 
 
