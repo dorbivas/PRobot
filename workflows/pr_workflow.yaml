@@ -8,5 +8,5 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Run Python script
-      run: python inject_text.py
+      run: python injectHelloWorld.py
 
