@@ -1,7 +1,7 @@
 
 import openai
 import os
-key = "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"
+key = "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" #TODO: get out to text file
 
 diff1 = '''
  class OpenAI:
@@ -78,7 +78,7 @@ For each file, there are a few metadata lines, for example:
 \`\`\`
 diff --git a/lib/index.js b/lib/index.js
 index aadf691..bfef603 100644
---- a/lib/index.js
+--- a/lib/index.js  
 +++ b/lib/index.js
 \`\`\`
 This means that \`lib/index.js\` was modified in this commit. Note that this is only an example.
@@ -120,11 +120,15 @@ class OpenAI:
 
     def generate_response(self, prompt):
         try:
+            # configure the behavior  of chatGPT
+
+
             response = openai.Completion.create(
                 model="text-davinci-002",
                 prompt=prompt,
                 temperature=0.5,
                 max_tokens=2048,
+
             )
             return response["choices"][0]["text"]
         except openai.error.OpenAIError as error:
