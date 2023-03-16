@@ -1,7 +1,7 @@
 
 import openai
 import os
-key = "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" #TODO: get out to text file
+key = "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" #TODO: get out to text file
 
 diff1 = '''
  class OpenAI:
@@ -166,7 +166,7 @@ diffs = [diff1, diff2]
 #     return final_summery
 
 
-def generate_PR_summery(diffs):
+def generate_PR_summay(diffs):
     openai = OpenAI(key)
     prompt = init_prompt
     final_summery = ""
@@ -192,5 +192,5 @@ def generate_PR_summery(diffs):
 
 #test()
 
-print(generate_PR_summery(diffs))
+print(generate_PR_summay(diffs))
 
