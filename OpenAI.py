@@ -1,7 +1,6 @@
 
 import openai
 import os
-key = "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" #TODO: get out to text file
 
 diff1 = '''
  class OpenAI:
@@ -109,20 +108,12 @@ Every bullet point should start with a \`* \`. :
 
 
 class OpenAI:
-
     def __init__(self, api_key):
-
         openai.api_key = api_key
-        #openai.organization = "ma-org"
-        #openai.api_key = api_key
-        #Authorization: Bearer YOUR_API_KEY
-
 
     def generate_response(self, prompt):
         try:
             # configure the behavior  of chatGPT
-
-
             response = openai.Completion.create(
                 model="text-davinci-002",
                 prompt=prompt,
@@ -133,8 +124,8 @@ class OpenAI:
             return response["choices"][0]["text"]
         except openai.error.OpenAIError as error:
             print(f"Error generating response: {error}")
-def test():
 
+def test():
     openai = OpenAI(key)
     prompt = init_prompt + first_injection_prompt + diff2
     response = openai.generate_response(prompt)
@@ -166,31 +157,10 @@ diffs = [diff1, diff2]
 #     return final_summery
 
 
-def generate_PR_summay(diffs):
-    openai = OpenAI(key)
-    prompt = init_prompt
-    final_summery = ""
-
-    for diff in diffs:
-        if diff != diffs[0]:
-            prompt += injection_prompt_rep + diff
-            response = openai.generate_response(prompt)
-            prompt = prompt.replace(injection_prompt_rep, "")
-
-        else:
-            prompt += first_injection_prompt + diff
-            response = openai.generate_response(prompt)
-            prompt = prompt.replace(first_injection_prompt, "")
-
-        check_response(response) #TODO: check if the response is good
-        if response:
-            final_summery += response
-
-    return final_summery
 
 
 
 #test()
 
-print(generate_PR_summay(diffs))
+#print(generate_PR_summay(diffs))
 

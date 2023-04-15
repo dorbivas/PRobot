@@ -25,7 +25,10 @@ class GitHubHandler:
         diff = pull.get_files()
         #get the latest commit message
         commit_message = pull.get_commits().reversed[0].commit.message
-        return diff, commit_message
+        diffs = []
+        for dif in diff:
+            diffs.append(dif.patch)
+        return diffs, commit_message
 
 
 def test():
@@ -34,12 +37,11 @@ def test():
     github = GitHubHandler(key)
 
     #get the diff files and the commit message
-    diff, commit_message = github.get_diff("kaplat-ex1-dor-bivas", 5)
+    diffs, commit_message = github.get_diff("kaplat-ex1-dor-bivas", 8)
 
-    for dif in diff:
-        print(dif.patch)
 
     print(commit_message)
+    print(diffs)
     #set comment
     #github.set_comment("kaplat-ex1-dor-bivas", 5, "test comment")
 
@@ -51,4 +53,4 @@ def test():
 
 
 
-test()
+#test()
