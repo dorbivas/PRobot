@@ -35,7 +35,6 @@ Insert a brief description of the project architecture here.
 Insert instructions on how to get started with the project here, including any pre-requirements.
 
 ## Usage
-## Usage
 
 To use PR0B0T, simply follow these steps:
 
