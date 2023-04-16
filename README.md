@@ -13,7 +13,6 @@ With PR0B0T, you no longer need to spend hours writing pull request messages. Th
 
 ## Key Features
 - Automated pull request message generation using GPT-3.5 API, saving valuable time and effort.
-- Centralized meeting management and organization to streamline the process.
 - Cutting-edge technology implemented with Python and Git API.
 - User-friendly console application that makes the process simple and efficient.
 
