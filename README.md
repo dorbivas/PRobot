@@ -35,7 +35,13 @@ Insert a brief description of the project architecture here.
 Insert instructions on how to get started with the project here, including any pre-requirements.
 
 ## Usage
-Insert instructions on how to use the project here.
+To use PR0B0T, follow these steps:
+
+1.Clone the PR0B0T repository to your local system.
+2.Install the required Python packages by running pip install -r requirements.txt.
+3.Run the UI.py script in your terminal using the command python UI.py.
+4.Follow the prompts in the console to enter the necessary information for your pull request.
+5.PR0B0T will generate a custom pull request message for you and automatically inject it into your pull request.
 
 ## Team Members & github links:
 
