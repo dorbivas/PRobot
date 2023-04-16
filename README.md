@@ -39,7 +39,7 @@ Insert instructions on how to use the project here.
 
 ## Team Members & github links:
 
-### <img src="main/static/dor.jpg" alt="Image alt text" width="250">:
+### <img src="main/static/dor.jpg" alt="Image alt text" width="250">
 [Github Profile](https://github.com/dorbivas) 
 Dor Bivas
 
