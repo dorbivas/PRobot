@@ -1,6 +1,5 @@
-
 import sys
-# Press the green button in the gutter to run the script.
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QTextEdit
 from GitHub import GitHubHandler
 from OpenAI import OpenAI
 
@@ -42,72 +41,122 @@ write a summary of the changes made in the diff, as a bullet point list.
 Every bullet point should start with a \`* \`. :
 """
 
-def generate_PR_summay(diffs, commit_message):
-    prompt = init_prompt
-    final_summery = ""
-    commit_injection = f"\ncommit message: {commit_message}"
-
-    for diff in diffs:
-        if diff != diffs[0]:
-            prompt += injection_prompt_rep + diff
-            response = openai.generate_response(prompt)
-            prompt = prompt.replace(injection_prompt_rep, "")
-
-        else:
-            prompt += first_injection_prompt + commit_injection + diff
-            response = openai.generate_response(prompt)
-            prompt = prompt.replace(first_injection_prompt, "")
-
-        if response:
-            final_summery += response
-
-    return final_summery
 
 
-if __name__ == '__main__':
-    print(sys.executable)
+class MainWindow(QMainWindow):
 
-    # 1) open session with git hub and openAI
-    # 1.1) get api key for all the session from file
-    ##git hub first line and openAI second line
-    github = GitHubHandler(input("Enter your github key: "))
-    openai = OpenAI(input("Enter your openAI key: "))
+    def __init__(self):
+        super().__init__()
 
-    # 2) get the pull request name and number from the user
-    repo_name = input("Enter the repo name: ")
-    pull_request_number = int(input("Enter the pull request number: "))
+        self.setWindowTitle("Pull Request Summary Generator")
+        self.setGeometry(100, 100, 400, 400)
 
-    # 3) get the diff from the pull request and the commit message
-    diffs, commit_messages = github.get_diff(repo_name, pull_request_number)
+        # Labels
+        self.label_token = QLabel("GitHub Token:", self)
+        self.label_token.move(20, 20)
 
-    # 4) send the diff and the commit message to the openAI server
-    summery = generate_PR_summay(diffs, commit_messages)
-    print(summery)
-    # 5) create the summery from the diff and the commit message
-    # 6) set the summery as the body of the pull request
+        self.label_openai_token = QLabel("OpenAI Token:", self)
+        self.label_openai_token.move(20, 60)
+
+        self.label_repo_name = QLabel("Repository Name:", self)
+        self.label_repo_name.move(20, 100)
+
+        self.label_pr_number = QLabel("PR Number:", self)
+        self.label_pr_number.move(20, 140)
+
+        self.label_summary = QLabel("Pull Request Summary:", self)
+        self.label_summary.move(20, 180)
+
+        # Text Fields
+        self.text_token = QLineEdit(self)
+        self.text_token.setGeometry(150, 20, 200, 25)
+
+        self.text_openai_token = QLineEdit(self)
+        self.text_openai_token.setGeometry(150, 60, 200, 25)
+
+        self.text_repo_name = QLineEdit(self)
+        self.text_repo_name.setGeometry(150, 100, 200, 25)
+
+        self.text_pr_number = QLineEdit(self)
+        self.text_pr_number.setGeometry(150, 140, 200, 25)
+
+        # Buttons
+        self.button_generate_summary = QPushButton("Generate Pull Request Summary", self)
+        self.button_generate_summary.setGeometry(100, 340, 200, 30)
+        self.button_generate_summary.clicked.connect(self.generate_summary)
+
+        self.button_reset_summary = QPushButton("Reset Summary", self)
+        self.button_reset_summary.setGeometry(20, 340, 80, 30)
+        self.button_reset_summary.clicked.connect(self.reset_summary)
+
+        self.button_set_body = QPushButton("Set Body", self)
+        self.button_set_body.setGeometry(310, 340, 80, 30)
+        self.button_set_body.clicked.connect(self.set_body)
+
+        # Summary Text Edit
+        self.textedit_summary = QTextEdit(self)
+        self.textedit_summary.setGeometry(20, 200, 370, 130)
+        self.textedit_summary.setReadOnly(True)
+        self.openai = None
+
+    def generate_PR_summary(self, diffs, commit_message):
+        prompt = init_prompt
+        final_summery = ""
+        commit_injection = f"\ncommit message: {commit_message}"
+
+        for diff in diffs:
+            if diff != diffs[0]:
+                prompt += injection_prompt_rep + diff
+                response = self.openai.generate_response(prompt)
+                prompt = prompt.replace(injection_prompt_rep, "")
+
+            else:
+                prompt += first_injection_prompt + commit_injection + diff
+                response = self.openai.generate_response(prompt)
+                prompt = prompt.replace(first_injection_prompt, "")
+
+            if response:
+                final_summery += response
+
+        return final_summery
 
 
-    # USER
-    # 1) open session with github
-    # 1.1) get api key for all the session from file
-    # 1.2) get repo name and pull request number from user
-    #Server
-    # 2) get the pull request from github
-    # 3) get the diff from the pull request and the commit message
-    # 4) send the diff and the commit message to the openAI server
-    # 5) create the summery from the diff and the commit message
-    # 6) set the summery as the body of the pull request
+    def generate_summary(self):
 
-    # TODO: OpenAIrespect file names in the response
+        github_token = self.text_token.text()
+        openai_token = self.text_openai_token.text()
+        repo_name = self.text_repo_name.text()
+        pr_number = int(self.text_pr_number.text())
+        print('1')
+        try:
+            github = GitHubHandler(github_token)
+            print(github.data)
+            self.openai = OpenAI(openai_token)
+            diffs, commit_message = github.get_diff(repo_name, pr_number)
+            summary = self.generate_PR_summary(diffs, commit_message)
+            print(summary)
+            #  github.set_comment(repo_name,pull_request_number, summary)
+            self.textedit_summary.setPlainText(summary)
+        except Exception as e:
+            error_message = f"An error occurred: {str(e)}"
+            QMessageBox.critical(self, "Error", error_message)
+            return
 
-    # PR object --> git branch , e.g B1...B3
-    # diff files
-    # Commits
-    # commit message
-    # File names
+        # Clear the input fields
+        self.text_token.clear()
+        self.text_openai_token.clear()
+        self.text_repo_name.clear()
+        self.text_pr_number.clear()
 
-    # diff format:
-    # commit messagem ,file name , diff file (patch) , file name , diff file(patch)...
+    def reset_summary(self):
+        self.textedit_summary.clear()
+
+    def set_body(self):
+        pass
 
 
-
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
