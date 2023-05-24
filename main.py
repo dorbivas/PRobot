@@ -23,27 +23,30 @@ A line that starting with \`-\` means that line was deleted.
 A line that starts with neither \`+\` nor \`-\` is code given for context and better understanding. 
 you will receive the commit message at the start for a reference of the subject pull request.
 remember to take commit message in corresponding to the diffs in order generate the best summary." 
-This is not part of the diffs to nor the summery.
-do not include the diff in the summary!.
+This is not part of the diffs nor the summery.
+do not print the diff files in the summary!.
 """
 
 first_injection_prompt = """
 The following is a "git diff" of a single file 
 Please summarize it in a comment, describing the changes made in the diff in high level and short.
 respect the following rules:
-do not include the diff files in the summary!.
 Write \`SUMMARY:\` and then write a summary of the changes made in the diff respecting the commit , as a bullet point list.
-Every bullet point should start with a \`* \`. :\ncommit message:
+Every bullet point should start with a \`* \`. :
+do not print the diff files in the summary!
+commit message:
 """
 
 injection_prompt_rep = """
-here is another git diff of a single file.
+here is a git diff of a single file.
 Please summarize it in a comment, describing the changes made in the diff in high level (and short) using only bullets \`* \` points.
 Do not write \`SUMMARY:\` anymore, this will be connected to the previous summary.
 respect the following rules:
-do not include the diff files in the summary!.
 write a summary of the changes made in the diff, as a bullet point list.
-Every bullet point should start with a \`* \`. :"""
+Every bullet point should start with a \`* \`. :
+do not write the following diff files in the summary!."""
+
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -119,7 +122,7 @@ class MainWindow(QMainWindow):
     def generate_PR_summary(self, diffs, commit_message):
         prompt = init_prompt
         final_summary = ""
-        commit_injection = f"{commit_message}. [commit message end. do not delete quote it in the summary.]"
+        commit_injection = f"{commit_message} [commit message end]. do not quote it in the summary. \ndiff file:"
 
         for diff in diffs:
             if diff != diffs[0]:
@@ -147,6 +150,10 @@ class MainWindow(QMainWindow):
             self.openai = OpenAI(openai_token)
             diffs, commit_message = github.get_diff(repo_name, pr_number)
             summary = self.generate_PR_summary(diffs, commit_message)
+            #save the summery to a file
+            with open("summary.txt", "w") as f:
+                f.write(summary)
+
             self.textedit_summary.setPlainText(summary)
         except Exception as e:
             error_message = f"An error occurred: {str(e)}"
