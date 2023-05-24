@@ -1,4 +1,3 @@
-
 import openai
 import os
 
@@ -104,12 +103,15 @@ connect it to the previous summary (dont add "SUMMARY:" again)
 write a summary of the changes made in the diff, as a bullet point list.
 Every bullet point should start with a \`* \`. :
 """
-
+class BadOpenAITokenError(Exception):
+    pass
 
 
 class OpenAI:
     def __init__(self, api_key):
         openai.api_key = api_key
+
+
 
     def generate_response(self, prompt):
         try:
@@ -125,6 +127,7 @@ class OpenAI:
         except openai.error.OpenAIError as error:
             print(f"Error generating response: {error}")
 
+
 def test():
     openai = OpenAI(key)
     prompt = init_prompt + first_injection_prompt + diff2
@@ -132,8 +135,10 @@ def test():
     if response:
         print(response)
 
+
 def check_response(response):
     pass
+
 
 diffs = [diff1, diff2]
 # def generate_PR_summery(diffs):
@@ -157,10 +162,6 @@ diffs = [diff1, diff2]
 #     return final_summery
 
 
+# test()
 
-
-
-#test()
-
-#print(generate_PR_summay(diffs))
-
+# print(generate_PR_summay(diffs))
