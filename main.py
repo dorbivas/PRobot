@@ -7,25 +7,43 @@ from GitHub import GitHubHandler
 from OpenAI import OpenAI
 
 init_prompt = """
-You are an expert programmer, and you are trying to summarize a "git diff" file for a Pull request documentation.
+You are an expert programmer, and you are trying to summarize a "git diff" files and commit messages for a Pull request documentation.
 Reminders about the git diff format:
-...
+For each file, there are a few metadata lines, for example:
+\`\`\`
+diff --git a/lib/index.js b/lib/index.js
+index aadf691..bfef603 100644
+--- a/lib/index.js  
++++ b/lib/index.js
+\`\`\`
+This means that \`lib/index.js\` was modified in this commit. Note the example.
+Then there is a specifier of the lines that were modified.
+A line starting with \`+\` means it was added.
+A line that starting with \`-\` means that line was deleted.
+A line that starts with neither \`+\` nor \`-\` is code given for context and better understanding. 
+you will receive the commit message at the start for a reference of the subject pull request.
+remember to take commit message in corresponding to the diffs in order generate the best summary." 
+This is not part of the diffs to nor the summery.
+do not include the diff in the summary!.
 """
 
 first_injection_prompt = """
-The following is a git diff of a single file.
-Please summarize it in a comment, describing the changes made in the diff in high level.
-Do it in the following way:
-...
+The following is a "git diff" of a single file 
+Please summarize it in a comment, describing the changes made in the diff in high level and short.
+respect the following rules:
+do not include the diff files in the summary!.
+Write \`SUMMARY:\` and then write a summary of the changes made in the diff respecting the commit , as a bullet point list.
+Every bullet point should start with a \`* \`. :\ncommit message:
 """
 
 injection_prompt_rep = """
-Here is another git diff of a single file.
-Please summarize it in a comment, describing the changes made in the diff in high level.
-Do not add "SUMMARY:" again; it will be connected to the previous summary.
-Do it in the following way:
-...
-"""
+here is another git diff of a single file.
+Please summarize it in a comment, describing the changes made in the diff in high level (and short) using only bullets \`* \` points.
+Do not write \`SUMMARY:\` anymore, this will be connected to the previous summary.
+respect the following rules:
+do not include the diff files in the summary!.
+write a summary of the changes made in the diff, as a bullet point list.
+Every bullet point should start with a \`* \`. :"""
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -101,7 +119,7 @@ class MainWindow(QMainWindow):
     def generate_PR_summary(self, diffs, commit_message):
         prompt = init_prompt
         final_summary = ""
-        commit_injection = f"\ncommit message: {commit_message}"
+        commit_injection = f"{commit_message}. [commit message end. do not delete quote it in the summary.]"
 
         for diff in diffs:
             if diff != diffs[0]:
