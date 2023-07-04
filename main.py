@@ -6,45 +6,6 @@ from PyQt5.QtCore import Qt
 from GitHub import GitHubHandler
 from OpenAI import OpenAI
 
-init_prompt = """
-You are an expert programmer, and you are trying to summarize a "git diff" files and commit messages for a Pull request documentation.
-Reminders about the git diff format:
-For each file, there are a few metadata lines, for example:
-\`\`\`
-diff --git a/lib/index.js b/lib/index.js
-index aadf691..bfef603 100644
---- a/lib/index.js  
-+++ b/lib/index.js
-\`\`\`
-This means that \`lib/index.js\` was modified in this commit. Note the example.
-Then there is a specifier of the lines that were modified.
-A line starting with \`+\` means it was added.
-A line that starting with \`-\` means that line was deleted.
-A line that starts with neither \`+\` nor \`-\` is code given for context and better understanding. 
-you will receive the commit message at the start for a reference of the subject pull request.
-remember to take commit message in corresponding to the diffs in order generate the best summary." 
-This is not part of the diffs nor the summery.
-do not print the diff files in the summary!.
-"""
-
-first_injection_prompt = """
-The following is a "git diff" of a single file 
-Please summarize it in a comment, describing the changes made in the diff in high level and short.
-respect the following rules:
-Write \`SUMMARY:\` and then write a summary of the changes made in the diff respecting the commit , as a bullet point list.
-Every bullet point should start with a \`* \`. :
-do not print the diff files in the summary!
-commit message:
-"""
-
-injection_prompt_rep = """
-here is a git diff of a single file.
-Please summarize it in a comment, describing the changes made in the diff in high level (and short) using only bullets \`* \` points.
-Do not write \`SUMMARY:\` anymore, this will be connected to the previous summary.
-respect the following rules:
-write a summary of the changes made in the diff, as a bullet point list.
-Every bullet point should start with a \`* \`. :
-do not write the following diff files in the summary!."""
 
 
 
@@ -83,17 +44,21 @@ class MainWindow(QMainWindow):
         self.label_summary.setStyleSheet("color: #333333;")
 
         # Text Fields
-        self.text_token = QLineEdit(self)
-        self.text_token.setGeometry(150, 20, 200, 25)
+        self.text_github_token = QLineEdit(self)
+        self.text_github_token.setGeometry(150, 20, 200, 25)
+        self.text_github_token.setText("")
 
         self.text_openai_token = QLineEdit(self)
         self.text_openai_token.setGeometry(150, 60, 200, 25)
+        self.text_openai_token.setText("") #for testing
 
         self.text_repo_name = QLineEdit(self)
         self.text_repo_name.setGeometry(150, 100, 200, 25)
+        self.text_repo_name.setText("showCasePr0b0t") #for testing
 
         self.text_pr_number = QLineEdit(self)
         self.text_pr_number.setGeometry(150, 140, 200, 25)
+        self.text_pr_number.setText("3") #for testing
 
         # Buttons
         self.button_generate_summary = QPushButton("Generate Pull Request Summary", self)
@@ -119,37 +84,19 @@ class MainWindow(QMainWindow):
 
         self.openai = None
 
-    def generate_PR_summary(self, diffs, commit_message):
-        prompt = init_prompt
-        final_summary = ""
-        commit_injection = f"{commit_message} [commit message end]. do not quote it in the summary. \ndiff file:"
 
-        for diff in diffs:
-            if diff != diffs[0]:
-                prompt += injection_prompt_rep + diff
-                response = self.openai.generate_response(prompt)
-                prompt = prompt.replace(injection_prompt_rep, "")
-            else:
-                prompt += first_injection_prompt + commit_injection + diff
-                response = self.openai.generate_response(prompt)
-                prompt = prompt.replace(first_injection_prompt, "")
-
-            if response:
-                final_summary += response
-
-        return final_summary
 
     def generate_summary(self):
-        github_token = self.text_token.text()
+        github_token = self.text_github_token.text()
         openai_token = self.text_openai_token.text()
         repo_name = self.text_repo_name.text()
 
         try:
             pr_number = int(self.text_pr_number.text())
             github = GitHubHandler(github_token)
-            self.openai = OpenAI(openai_token)
-            diffs, commit_message = github.get_diff(repo_name, pr_number)
-            summary = self.generate_PR_summary(diffs, commit_message)
+            openai = OpenAI(openai_token)
+            diff_files, commit_message = github.get_diff(repo_name, pr_number)
+            summary = openai.generate_PR_summary(diff_files, commit_message)
             #save the summery to a file
             with open("summary.txt", "w") as f:
                 f.write(summary)
