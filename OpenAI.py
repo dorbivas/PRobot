@@ -1,7 +1,8 @@
+import re
+
 import openai
 import os
 import tiktoken
-from langchain.text_splitter import Tokenizer
 
 
 class BadOpenAITokenError(Exception):
@@ -11,11 +12,11 @@ class BadOpenAITokenError(Exception):
 class OpenAI:
     m_max_tokens = 2048
     tmp_summary_file = "tmp_summary.txt"
-    k_input_illusion_threshold = 1024  # The higher the threshold the more likely it is to be an illusion, but if it
+    k_input_illusion_threshold = 2048  # The higher the threshold the more likely it is to be an illusion, but if it
     # does answer it will be more accurate.
-    k_output_illusion_threshold = 128  # This is a more valid threshold, since it was defined by us to the model's
+    k_output_illusion_threshold = 256  # This is a more valid threshold, since it was defined by us to the model's
     # output.
-    k_model_temperature = 1.2  # The higher the temperature the more creative the model will be, but it will also be
+    k_model_temperature = 1.1  # The higher the temperature the more creative the model will be, but it will also be
     # more likely to make mistakes.
     k_machine_learning_model = "text-davinci-002"
 
@@ -73,25 +74,41 @@ class OpenAI:
 
                 self.append_to_file(response)
                 print("finished file no: " + str(file_no))
-            final_summary = self.generate_summery_prompt(commit_message, prompt)
+            print("finished generating summaries for each file")
+            final_summary = self.generate_summary_prompt(commit_message, prompt)
 
         except Exception as e:
             print(e)
             return "Error generating summary"
         return final_summary
 
-    def generate_summery_prompt(self, commit_message, prompt):
+    def generate_summary_prompt(self, commit_message, prompt):
+        attempt_no = 0
+        while attempt_no < 5:
+            print("attempt: " + str(attempt_no))
+            initial_text = self.final_summary_initial_prompt_text
+            commit = commit_message
+            file_summary_text = self.read_file_into_string()
+            final_prompt = f'{initial_text}{commit}{file_summary_text}'
+            if len(final_prompt) >= self.m_max_tokens:
+                final_prompt = prompt[:len(final_prompt)]  # take care of case where final prompt is too long for openai
+                # to handle
+            final_summary = self.generate_response(final_prompt)  # add more validation to fine grain
+            attempt_no += 1
+            if self.get_summary_slice(final_summary) != "":
+                break
 
-        print("finished generating summaries for each file")
-        initial_text = self.final_summary_initial_prompt_text
-        commit = commit_message
-        file_summary_text = self.read_file_into_string()
-        final_prompt = f'{initial_text}{commit}{file_summary_text}'
-        if len(final_prompt) >= self.m_max_tokens:
-            final_prompt = prompt[:len(final_prompt)]  # take care of case where final prompt is too long for openai
-            # to handle
-        final_summary = self.generate_response(final_prompt)  # add more validation to fine grain
-        return final_summary
+        return self.get_summary_slice(final_summary)
+
+    def get_summary_slice(self, text):
+        pattern = r"\bSUMMARY\b"  # \b matches word boundaries
+        match = re.search(pattern, text)
+        if match:
+            start_index = match.start()
+            summary_slice = text[start_index:]
+            return summary_slice
+        else:
+            return ""
 
     def delete_file_if_already_exists(self):
         file_path = self.tmp_summary_file
@@ -120,10 +137,9 @@ class OpenAI:
         """You are an expert programmer, and you are trying to 
     summarize a "git diff" single file change for the documentation of a git pull request.
     summarize every essential / large difference made, into a single concise bullet-point
-    you're expected to summerize exactly one or two points from the difference. 
+    you're expected to summerize one or two points from the difference. 
     if data is unclear or unavailable to summerize the difference, reply "Unable to summerize"
-    [Example for a summery of a single change in a diff File]
-     Diff file:
+    Example Diff file input:
      \`\`\`
     --git a/lib/index.js b/lib/index.js
     index aadf691..bfef603 100644
@@ -131,11 +147,9 @@ class OpenAI:
     +++ b/lib/newfeature.js
     +++ c/lib/upload_images.js
     \`\`\`
-    Summary:
-    * Updated feature "newfeature.js" 
-    * The feture that allows users to upload images.
-    [Finished Example for Diff File]
-   This is not part of the diffs nor the summary, do not include it.
+    should be summerized as:
+    * Added new feature class "newfeature.js"
+    * Created front-end "upload_images.js" which allows users to upload images.
     """
 
     final_summary_initial_prompt_text = \
@@ -143,8 +157,7 @@ class OpenAI:
     The file was created by you, by adding one or two bullet-points from each git dif made in the pull request.
     The input format you'll be receiving is as follows:
     1. The commit message.
-    2. The bullet points may or may not be scattered in the recived input 
-    BEWARE: The input may contain some noise, which should be ignored.
+    2. The bullet points may or may not be scattered in the received input 
 
     Summerize the file, following these rules:
     1. Write \`SUMMARY:\` on the start of the Summary
@@ -152,14 +165,12 @@ class OpenAI:
     3. The bullet points should be heavily chosen based on the commit message.
     4. The final summary should be no longer than 5 bullet points. 
     5. Every bullet point should start with a \`* \`.
+    6. if you see a bullet point with the text \`Unable to summerize\`, ignore it.
     
-    [Example for summery output]
+    Example for a summary based on multiple bullet points:
        Summary:
-    * Updated feature "newfeature.js" 
-    * The feture that allows users to upload images.
-    [Finished Example for Diff File]
-
-
-
+    * Added new feature class "newfeature.js"
+    * Created front-end "upload_images.js" which allows users to upload images.
+    * Fixed bug in "oldfeature.js" which caused the app to crash.
    
 """
