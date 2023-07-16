@@ -31,7 +31,6 @@ class OpenAI:
                 prompt=prompt,
                 temperature=self.k_model_temperature,
                 max_tokens=self.m_max_tokens,
-
             )
             return response["choices"][0]["text"]
         except Exception as e:
@@ -117,40 +116,50 @@ class OpenAI:
     #     num_tokens = len(encoding.encode(string))
     #     return num_tokens
 
-
     bullets_from_single_file_initial_prompt_text = \
-        """1. You are an expert programmer, and you are trying to 
+        """You are an expert programmer, and you are trying to 
     summarize a "git diff" single file change for the documentation of a git pull request.
-    every seemingly important / large difference made, summarize it into a single concise bullet-point
-    you're expected to summerize exactly one point from the difference. 
-
+    summarize every essential / large difference made, into a single concise bullet-point
+    you're expected to summerize exactly one or two points from the difference. 
+    if data is unclear or unavailable to summerize the difference, reply "Unable to summerize"
     [Example for a summery of a single change in a diff File]
-    - Added a new feature that allows users to upload images.
+     Diff file:
+     \`\`\`
+    --git a/lib/index.js b/lib/index.js
+    index aadf691..bfef603 100644
+    --- a/lib/oldfeature.js  
+    +++ b/lib/newfeature.js
+    +++ c/lib/upload_images.js
+    \`\`\`
+    Summary:
+    * Updated feature "newfeature.js" 
+    * The feture that allows users to upload images.
     [Finished Example for Diff File]
-    do not include the prompt in the summary, just the bullet points.
+   This is not part of the diffs nor the summary, do not include it.
     """
 
     final_summary_initial_prompt_text = \
-        """1. You are an expert programmer, and you are trying to make a summary out of a file with possible noice.
-     The file was created by you, by adding one bullet-point from each git dif made in the pull request.
-    The input You've received for each file is as follows: 
-    
+        """You are an expert programmer, and you are trying to make a summary out of a file with possible noice.
+    The file was created by you, by adding one or two bullet-points from each git dif made in the pull request.
     The input format you'll be receiving is as follows:
     1. The commit message.
-    2. The bullet points may or may not be scattered in the input, since you've created it.  
-    BEWARE: The input may contain some noise, and you should ignore it.
-    
+    2. The bullet points may or may not be scattered in the recived input 
+    BEWARE: The input may contain some noise, which should be ignored.
+
     Summerize the file, following these rules:
-    1. The summary should be heavily based on the bullet points you've received, and should be as concise as possible.
-    2. The bullet points should be heavily chosen based on the commit message.
-    3. The final summary should be no longer than 5 bullet points. number each bullet you've added from 1-5.
+    1. Write \`SUMMARY:\` on the start of the Summary
+    2. The summary should be heavily based on the bullet points you've received, and should be as concise as possible.
+    3. The bullet points should be heavily chosen based on the commit message.
+    4. The final summary should be no longer than 5 bullet points. 
+    5. Every bullet point should start with a \`* \`.
     
     [Example for summery output]
-    1. Added a new feature that allows users to upload images.
-    2. Fixed a bug that caused the app to crash when the user tried to upload an image.
-    3. Security updated.
-    
-    
-    
-       
-    """
+       Summary:
+    * Updated feature "newfeature.js" 
+    * The feture that allows users to upload images.
+    [Finished Example for Diff File]
+
+
+
+   
+"""
