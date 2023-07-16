@@ -46,11 +46,11 @@ class MainWindow(QMainWindow):
         # Text Fields
         self.text_github_token = QLineEdit(self)
         self.text_github_token.setGeometry(150, 20, 200, 25)
-        self.text_github_token.setText("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")
+        self.text_github_token.setText("")
 
         self.text_openai_token = QLineEdit(self)
         self.text_openai_token.setGeometry(150, 60, 200, 25)
-        self.text_openai_token.setText("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") #for testing
+        self.text_openai_token.setText("") #for testing
 
         self.text_repo_name = QLineEdit(self)
         self.text_repo_name.setGeometry(150, 100, 200, 25)
