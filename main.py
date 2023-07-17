@@ -1,121 +1,130 @@
-import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QTextEdit, QMessageBox
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+import os
+import streamlit as st
 
-from GitHub import GitHubHandler
-from OpenAI import OpenAI
+from utils import (
+    doc_loader, summary_prompt_creator, doc_to_final_summary,
+)
+from my_prompts import file_map, file_combine, youtube_map, youtube_combine
+from streamlit_app_utils import check_gpt_4, check_key_validity, create_temp_file, create_chat_model, \
+    token_limit, token_minimum
 
-
-
-
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("Pull Request Summary Generator")
-        self.setGeometry(100, 100, 400, 400)
-        self.setStyleSheet("background-color: #FFFFFF;")
-
-        # Labels
-        self.label_token = QLabel("GitHub Token:", self)
-        self.label_token.move(20, 20)
-        self.label_token.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_token.setStyleSheet("color: #333333;")
-
-        self.label_openai_token = QLabel("OpenAI Token:", self)
-        self.label_openai_token.move(20, 60)
-        self.label_openai_token.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_openai_token.setStyleSheet("color: #333333;")
-
-        self.label_repo_name = QLabel("Repository Name:", self)
-        self.label_repo_name.move(20, 100)
-        self.label_repo_name.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_repo_name.setStyleSheet("color: #333333;")
-
-        self.label_pr_number = QLabel("PR Number:", self)
-        self.label_pr_number.move(20, 140)
-        self.label_pr_number.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_pr_number.setStyleSheet("color: #333333;")
-
-        self.label_summary = QLabel("Pull Request Summary:", self)
-        self.label_summary.move(20, 180)
-        self.label_summary.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_summary.setStyleSheet("color: #333333;")
-
-        # Text Fields
-        self.text_github_token = QLineEdit(self)
-        self.text_github_token.setGeometry(150, 20, 200, 25)
-        self.text_github_token.setText("")
-
-        self.text_openai_token = QLineEdit(self)
-        self.text_openai_token.setGeometry(150, 60, 200, 25)
-        self.text_openai_token.setText("") #for testing
-
-        self.text_repo_name = QLineEdit(self)
-        self.text_repo_name.setGeometry(150, 100, 200, 25)
-        self.text_repo_name.setText("showCasePr0b0t") #for testing
-
-        self.text_pr_number = QLineEdit(self)
-        self.text_pr_number.setGeometry(150, 140, 200, 25)
-        self.text_pr_number.setText("3") #for testing
-
-        # Buttons
-        self.button_generate_summary = QPushButton("Generate Pull Request Summary", self)
-        self.button_generate_summary.setGeometry(100, 340, 200, 30)
-        self.button_generate_summary.clicked.connect(self.generate_summary)
-        self.button_generate_summary.setStyleSheet("background-color: #007AFF; color: #FFFFFF; font-weight: bold;")
-
-        self.button_reset_summary = QPushButton("Reset Summary", self)
-        self.button_reset_summary.setGeometry(20, 340, 80, 30)
-        self.button_reset_summary.clicked.connect(self.reset_summary)
-        self.button_reset_summary.setStyleSheet("background-color: #007AFF; color: #FFFFFF; font-weight: bold;")
-
-        self.button_set_body = QPushButton("Set Body", self)
-        self.button_set_body.setGeometry(310, 340, 80, 30)
-        self.button_set_body.clicked.connect(self.set_body)
-        self.button_set_body.setStyleSheet("background-color: #007AFF; color: #FFFFFF; font-weight: bold;")
-
-        # Summary Text Edit
-        self.textedit_summary = QTextEdit(self)
-        self.textedit_summary.setGeometry(20, 200, 370, 130)
-        self.textedit_summary.setReadOnly(True)
-        self.textedit_summary.setStyleSheet("background-color: #F2F2F2; border: 1px solid #CCCCCC;")
-
-        self.openai = None
+from utils import transcript_loader
 
 
+def main():
+    """
+    The main function for the Streamlit app.
 
-    def generate_summary(self):
-        github_token = self.text_github_token.text()
-        openai_token = self.text_openai_token.text()
-        repo_name = self.text_repo_name.text()
+    :return: None.
+    """
+    st.title("Document Summarizer")
 
-        try:
-            pr_number = int(self.text_pr_number.text())
-            github = GitHubHandler(github_token)
-            openai = OpenAI(openai_token)
-            diff_files, commit_message = github.get_diff(repo_name, pr_number)
-            summary = openai.generate_PR_summary(diff_files, commit_message)
-            with open("summary.txt", "w") as f:
-                f.write(summary)
+    input_method = st.radio("Select input method", ('Upload a document', 'Enter a YouTube URL'))
 
-            self.textedit_summary.setPlainText(summary)
-        except Exception as e:
-            error_message = f"An error occurred: {str(e)}"
-            QMessageBox.critical(self, "Error", error_message)
+    if input_method == 'Upload a document':
+        uploaded_file = st.file_uploader("Upload a document to summarize, 10k to 100k tokens works best!", type=['txt', 'pdf'])
+
+    if input_method == 'Enter a YouTube URL':
+        youtube_url = st.text_input("Enter a YouTube URL to summarize")
+
+    api_key = st.text_input("Enter API key here, or contact the author if you don't have one.")
+    st.markdown('[Author email](mailto:ethanujohnston@gmail.com)')
+    use_gpt_4 = st.checkbox("Use GPT-4 for the final prompt (STRONGLY recommended, requires GPT-4 API access - progress bar will appear to get stuck as GPT-4 is slow)", value=True)
+    find_clusters = st.checkbox('Find optimal clusters (experimental, could save on token usage)', value=False)
+    st.sidebar.markdown('# Made by: [Ethan](https://github.com/e-johnstonn)')
+    st.sidebar.markdown('# Git link: [Docsummarizer](https://github.com/e-johnstonn/docsummarizer)')
+    st.sidebar.markdown("""<small>It's always good practice to verify that a website is safe before giving it your API key. 
+                        This site is open source, so you can check the code yourself, or run the streamlit app locally.</small>""", unsafe_allow_html=True)
+
+
+    if st.button('Summarize (click once and wait)'):
+        if input_method == 'Upload a document':
+            process_summarize_button(uploaded_file, api_key, use_gpt_4, find_clusters)
+
+        else:
+            doc = transcript_loader(youtube_url)
+            process_summarize_button(doc, api_key, use_gpt_4, find_clusters, file=False)
+
+
+def process_summarize_button(file_or_transcript, api_key, use_gpt_4, find_clusters, file=True):
+    """
+    Processes the summarize button, and displays the summary if input and doc size are valid
+
+    :param file_or_transcript: The file uploaded by the user or the transcript from the YouTube URL
+
+    :param api_key: The API key entered by the user
+
+    :param use_gpt_4: Whether to use GPT-4 or not
+
+    :param find_clusters: Whether to find optimal clusters or not, experimental
+
+    :return: None
+    """
+    if not validate_input(file_or_transcript, api_key, use_gpt_4):
+        return
+
+    with st.spinner("Summarizing... please wait..."):
+        if file:
+            temp_file_path = create_temp_file(file_or_transcript)
+            doc = doc_loader(temp_file_path)
+            map_prompt = file_map
+            combine_prompt = file_combine
+        else:
+            doc = file_or_transcript
+            map_prompt = youtube_map
+            combine_prompt = youtube_combine
+        llm = create_chat_model(api_key, use_gpt_4)
+        initial_prompt_list = summary_prompt_creator(map_prompt, 'text', llm)
+        final_prompt_list = summary_prompt_creator(combine_prompt, 'text', llm)
+
+        if not validate_doc_size(doc):
+            if file:
+                os.unlink(temp_file_path)
             return
 
-    def reset_summary(self):
-        self.textedit_summary.clear()
+        if find_clusters:
+            summary = doc_to_final_summary(doc, 10, initial_prompt_list, final_prompt_list, api_key, use_gpt_4, find_clusters)
 
-    def set_body(self):
-        pass
+        else:
+            summary = doc_to_final_summary(doc, 10, initial_prompt_list, final_prompt_list, api_key, use_gpt_4)
+
+        st.markdown(summary, unsafe_allow_html=True)
+        if file:
+            os.unlink(temp_file_path)
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")  # Use the Fusion style for a consistent look
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+def validate_doc_size(doc):
+    """
+    Validates the size of the document
+
+    :param doc: doc to validate
+
+    :return: True if the doc is valid, False otherwise
+    """
+    if not token_limit(doc, 800000):
+        st.warning('File or transcript too big!')
+        return False
+
+    if not token_minimum(doc, 10):
+        st.warning('File or transcript too small!')
+        return False
+    return True
+
+
+def validate_input(api_key, use_gpt_4):
+   #TODO: validate other params (github api key, github repo, github number)
+
+    if not check_key_validity(api_key):
+        st.warning('Key not valid or API is down.')
+        return False
+
+    if use_gpt_4 and not check_gpt_4(api_key):
+        st.warning('Key not valid for GPT-4.')
+        return False
+
+    return True
+
+
+if __name__ == '__main__':
+    main()
+
