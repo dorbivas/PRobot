@@ -31,25 +31,24 @@ def main():
     init_logger()
 
     try:
-        # Example log messages
-
-        logging.info("Called 'main'.")
         st.title("Probot - Pullrequest summarizer")
         # Create a Streamlit app
         st.title("API Connectivity Status")
 
         render_check_connectivity()
         connectivity_status = is_check_connectivity()
-
         # TODO: feature?
         # input_method = st.radio("Select input method", ('Upload a document', 'Enter a YouTube URL'))
 
         open_ai_api_key = st.text_input("Enter Open-AI API key here, or contact the author if you don't have one.",
-                                        disabled=not connectivity_status)
+                                        disabled=not connectivity_status,
+                                        value="")
         github_api_key = st.text_input("Enter Github API key here, or contact the author if you don't have one.",
-                                       disabled=not connectivity_status)
-        repo_name = st.text_input("Enter Github repository name", disabled=not connectivity_status)
-        pr_number = st.text_input("Enter Pullrequest number", disabled=not connectivity_status)
+                                       disabled=not connectivity_status,
+                                       value="")
+        repo_name = st.text_input("Enter Github repository name", disabled=not connectivity_status,
+                                  value="")
+        pr_number = st.text_input("Enter Pullrequest number", disabled=not connectivity_status, value="")
 
         use_gpt_4 = st.checkbox("Use GPT-4 for the final prompt (STRONGLY recommended, requires GPT-4 API access - "
                                 "progress bar will appear to get stuck as GPT-4 is slow)", value=True,
@@ -66,13 +65,11 @@ def main():
         API key. This site is open source, so you can check the code yourself, or run the streamlit app 
         locally.</small>""", unsafe_allow_html=True)
 
-        st.button(
-            'Summarize (click once and wait)', disabled=not connectivity_status, on_click=process_summarize_button,
-            args=(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4, find_clusters)
-        )
+        if st.button('Summarize (click once and wait)', disabled=not connectivity_status):
+            process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4, find_clusters)
 
-        if st.button('Set PR comment!', disabled=not connectivity_status and is_summary_present()):
-            set_comment(github_api_key, repo_name, pr_number, st.session_state.summary)
+        # if st.button('Set PR comment!', disabled=not connectivity_status and is_summary_present()):
+        #     set_comment(github_api_key, repo_name, pr_number, st.session_state.summary)
     except Exception as e:
         logging.exception(e)
         st.write("An error occurred. Please contact the author.")
@@ -116,11 +113,10 @@ def process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_numb
     """
     if not validate_input(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4):
         return
-
+    summary_container = st.empty()
     with st.spinner("Summarizing... please wait..."):
 
         git_diff, commit_message = get_diff(github_api_key, repo_name, pr_number)
-        logging.info("Got diff from GitHub API.")
 
         temp_file_path = create_temp_file(git_diff)
 
@@ -142,13 +138,13 @@ def process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_numb
 
         else:
             summary = doc_to_final_summary(doc, 10, initial_prompt_list, final_prompt_list, open_ai_api_key, use_gpt_4)
-
-        st.markdown(summary, unsafe_allow_html=True, key='summary')
+        logging.debug("summary: %s", summary)
+        summary_container.markdown(summary, unsafe_allow_html=True)
         os.unlink(temp_file_path)
 
 
-def is_summary_present():
-    return 'summary' in st.session_state
+# def is_summary_present():
+#     return 'summary' in st.session_state
 
 
 @log_function_entry_exit
@@ -172,23 +168,22 @@ def validate_doc_size(doc):
 
 @log_function_entry_exit
 def validate_input(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4):
-    # TODO: validate other params (github api key, github repo, github number)
+    status = True
     if not validate_github_inputs(github_api_key, repo_name, pr_number):
-        st.warning('GitHub inputs not valid.')
-        return False
-
+        st.warning('GitHub inputs not valid or API is down.')
+        logging.warning('GitHub inputs not valid or API is down.')
     if not check_key_validity(open_ai_api_key):
-        st.warning('Key not valid or API is down.')
-        return False
+        st.warning('OpenAI key not valid or API is down.')
+        logging.warning('OpenAI key not valid or API is down.')
 
     if use_gpt_4 and not check_gpt_4(open_ai_api_key):
-        st.warning('Key not valid for GPT-4.')
-        return False
-    if not check_gpt_3_5(open_ai_api_key):
-        st.warning('Key not valid for GPT-3.5.')
-        return False
-
-    return True
+        st.warning('Test Key not valid for GPT-4.')
+        status = False
+    else:
+        if not use_gpt_4 and not check_gpt_3_5(open_ai_api_key):
+            st.warning('Key not valid for GPT-3.5.')
+            status = False
+    return status
 
 
 if __name__ == '__main__':

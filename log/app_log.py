@@ -14,7 +14,7 @@ def log_function_entry_exit(func):
 
         result = func(*args, **kwargs)
 
-        logger.debug(f"Exiting {func.__name__}. Return value: {result}")
+        logger.debug(f"Exiting {func.__name__}. Return value: {result}\n")
         return result
 
     return wrapper

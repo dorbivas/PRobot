@@ -181,7 +181,7 @@ def test_openai_api_connectivity():
         if response.status_code != 404:
             return True
         else:
-            logging.WARNING("OpenAI API connection failed.")
+            logging.warning("OpenAI API connection failed.")
             return False
     except requests.RequestException:
         logging.error("get request failed")

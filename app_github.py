@@ -56,7 +56,7 @@ def get_diff(api_key, repo_name, pull_request_number):
     :return: A list of diffs and the commit message.
     """
     data = Github(api_key)
-    pull = data.get_user().get_repo(repo_name).get_pull(pull_request_number)
+    pull = data.get_user().get_repo(repo_name).get_pull(int(pull_request_number))
     diff = pull.get_files()
     # get the latest commit message
     commit_message = pull.get_commits().reversed[0].commit.message
@@ -68,10 +68,10 @@ def get_diff(api_key, repo_name, pull_request_number):
 
 # TODO: integrate this function into the main code
 @log_function_entry_exit
-def set_comment(self, repo_name, pull_request_number, comment):
+def set_comment(repo_name, pull_request_number, comment):
     print("set_comment")
     # pull = self.data.get_user().get_repo(repo_name).get_pull(pull_request_number)
-    # # edit the comment with the neccerly access
+    # # edit the comment with the necessary access
     # pull.edit(body=comment)
 
 
@@ -84,38 +84,21 @@ def test_github_api_connectivity():
         if response.status_code != 404:
             return True
         else:
-            logging.WARNING("OpenAI API connection failed.")
+            logging.warning("OpenAI API connection failed.")
             return False
     except requests.RequestException:
         logging.error("get request failed")
         return False
 
 
-# @log_function_entry_exit
-# def get_github_username(github_token):
-#     github_api_url = "https://api.github.com/user"
-#     headers = {"Authorization": f"token {github_token}"}
-#
-#     try:
-#         response = requests.get(github_api_url, headers=headers)
-#         if response.status_code == 200:
-#             user_data = response.json()
-#             return user_data.get("login")
-#         else:
-#             return None
-#     except requests.RequestException:
-#         return None
-
-
 @log_function_entry_exit
 def validate_github_inputs(api_key, repo_name, pr_number):
     try:
-        pass
         is_valid_key = is_github_api_key_valid(api_key)
-        repo_exists = does_github_repository_exist(api_key, repo_name)
-        pr_exists = does_github_pull_request_exist(api_key, repo_name, pr_number)
-        status = is_valid_key and repo_exists and pr_exists
+        # repo_exists = does_github_repository_exist(api_key, repo_name)
+        # pr_exists = does_github_pull_request_exist(api_key, repo_name, pr_number)
+        status = is_valid_key  # and repo_exists and pr_exists
     except Exception as e:
         logging.error(f"Error validating GitHub inputs: {e}")
-        status = False
-    return True
+        return False
+    return status
