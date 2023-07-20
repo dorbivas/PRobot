@@ -38,6 +38,7 @@ Insert instructions on how to get started with the project here, including any p
 
 To use PR0B0T, simply follow these steps:
 
+# TODO: change to streamlit.io
 1. Clone the PR0B0T repository to your local machine.
 2. Install the required dependencies by running `pip install -r requirements.txt` in your command prompt or terminal.
 3. Run the UI.py file to open the user-friendly console application.

@@ -3,7 +3,10 @@ from sklearn.cluster import KMeans
 
 import matplotlib.pyplot as plt
 
+from log.app_log import log_function_entry_exit
 
+
+@log_function_entry_exit
 def calculate_inertia(vectors, max_clusters=12):
     """
     Calculate the inertia values for a range of clusters.
@@ -21,6 +24,7 @@ def calculate_inertia(vectors, max_clusters=12):
     return inertia_values
 
 
+@log_function_entry_exit
 def plot_elbow(inertia_values):
     """
     Plot the inertia values for a range of clusters. Just for fun!
@@ -35,6 +39,7 @@ def plot_elbow(inertia_values):
     plt.show()
 
 
+@log_function_entry_exit
 def determine_optimal_clusters(inertia_values):
     """
     Determine the optimal number of clusters to use based on the inertia values.
@@ -47,8 +52,7 @@ def determine_optimal_clusters(inertia_values):
     for i in range(len(inertia_values) - 1):
         p1 = np.array([i + 1, inertia_values[i]])
         p2 = np.array([i + 2, inertia_values[i + 1]])
-        d = np.linalg.norm(np.cross(p2 - p1, p1 - np.array([1,0]))) / np.linalg.norm(p2 - p1)
+        d = np.linalg.norm(np.cross(p2 - p1, p1 - np.array([1, 0]))) / np.linalg.norm(p2 - p1)
         distances.append(d)
     optimal_clusters = distances.index(max(distances)) + 2
     return optimal_clusters
-

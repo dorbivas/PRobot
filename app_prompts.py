@@ -7,7 +7,7 @@ while maintaining clarity and conciseness.
 FULL SUMMARY:
 """
 
-# TODO: bullet-points only
+# TODO: bullet-points only? OR divide into suggested AND changes descriptions?
 file_combine = """Read all the provided summaries from a larger document. They will be enclosed in triple backticks. 
 Determine what the overall document is about and summarize it with this information in mind. Synthesize the info into 
 a well-formatted easy-to-read synopsis, structured like an essay that summarizes them cohesively. Do not simply 

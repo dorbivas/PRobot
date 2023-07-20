@@ -1,3 +1,4 @@
+import logging
 import tempfile
 
 import PyPDF2
@@ -6,9 +7,11 @@ from io import StringIO
 
 from langchain.chat_models import ChatOpenAI
 
-from PR_Summarizer import doc_to_text, token_counter
+from app_openai import doc_to_text, token_counter
+from log.app_log import log_function_entry_exit
 
 
+@log_function_entry_exit
 def pdf_to_text(pdf_file):
     """
     Convert a PDF file to a string of text.
@@ -25,6 +28,7 @@ def pdf_to_text(pdf_file):
     return text.getvalue().encode('utf-8')
 
 
+@log_function_entry_exit
 def check_gpt_4(api_key):
     """
     Check if the user has access to GPT-4.
@@ -37,9 +41,28 @@ def check_gpt_4(api_key):
         ChatOpenAI(openai_api_key=api_key, model_name='gpt-4').call_as_llm('Hi')
         return True
     except Exception as e:
+        logging.error(f"Error checking GPT-4 access: {e}")
         return False
 
 
+@log_function_entry_exit
+def check_gpt_3_5(api_key):
+    """
+    Check if the user has access to GPT-4.
+
+    :param api_key: The user's OpenAI API key.
+
+    :return: True if the user has access to GPT-4, False otherwise.
+    """
+    try:
+        ChatOpenAI(openai_api_key=api_key, model_name='gpt-3.5-turbo').call_as_llm('Hi')
+        return True
+    except Exception as e:
+        logging.error(f"Error checking GPT-3.5 access: {e}")
+        return False
+
+
+@log_function_entry_exit
 def token_limit(doc, maximum=200000):
     """
     Check if a document has more tokens than a specified maximum.
@@ -52,12 +75,13 @@ def token_limit(doc, maximum=200000):
     """
     text = doc_to_text(doc)
     count = token_counter(text)
-    print(count)
     if count > maximum:
+        logging.error(f"Token limit exceeded. Token count: {count}")
         return False
     return True
 
 
+@log_function_entry_exit
 def token_minimum(doc, minimum=2000):
     """
     Check if a document has more tokens than a specified minimum.
@@ -75,6 +99,7 @@ def token_minimum(doc, minimum=2000):
     return True
 
 
+@log_function_entry_exit
 def check_key_validity(api_key):
     """
     Check if an OpenAI API key is valid.
@@ -93,6 +118,7 @@ def check_key_validity(api_key):
         return False
 
 
+@log_function_entry_exit
 def create_temp_file(github_diffs):
     """
     Create a temporary file from an uploaded file.
@@ -105,10 +131,10 @@ def create_temp_file(github_diffs):
         for diff_part in github_diffs:
             if diff_part is not None:
                 temp_file.write(diff_part)
-            print(type(diff_part))
     return temp_file.name
 
 
+@log_function_entry_exit
 def create_chat_model(api_key, use_gpt_4):
     """
     Create a chat model ensuring that the token limit of the overall summary is not exceeded - GPT-4 has a higher token limit.
@@ -120,9 +146,6 @@ def create_chat_model(api_key, use_gpt_4):
     :return: A chat model.
     """
     if use_gpt_4:
-        return ChatOpenAI(openai_api_key=api_key, temperature=0, max_tokens=500, model_name='gpt-3.5-turbo')
+        return ChatOpenAI(openai_api_key=api_key, temperature=0, max_tokens=500, model_name='gpt-4')
     else:
         return ChatOpenAI(openai_api_key=api_key, temperature=0, max_tokens=250, model_name='gpt-3.5-turbo')
-
-
-
