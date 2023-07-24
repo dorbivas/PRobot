@@ -1,7 +1,5 @@
-import functools
 import os
 
-import requests
 import streamlit as st
 
 import logging
@@ -9,9 +7,8 @@ import logging.config
 
 from app_github import test_github_api_connectivity, validate_github_inputs, get_diff, set_comment
 
-from app_openai import (
-    doc_loader, summary_prompt_creator, doc_to_final_summary, test_openai_api_connectivity
-)
+from app_openai import doc_loader, summary_prompt_creator, doc_to_final_summary, test_openai_api_connectivity
+
 from app_streamlit import check_gpt_4, check_key_validity, create_temp_file, create_chat_model, \
     token_limit, token_minimum, check_gpt_3_5
 
@@ -37,18 +34,19 @@ def main():
 
         render_check_connectivity()
         connectivity_status = is_check_connectivity()
+        summery_status = False
         # TODO: feature?
         # input_method = st.radio("Select input method", ('Upload a document', 'Enter a YouTube URL'))
 
         open_ai_api_key = st.text_input("Enter Open-AI API key here, or contact the author if you don't have one.",
                                         disabled=not connectivity_status,
-                                        value="")
+                                        value="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")
         github_api_key = st.text_input("Enter Github API key here, or contact the author if you don't have one.",
                                        disabled=not connectivity_status,
-                                       value="")
+                                       value="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")
         repo_name = st.text_input("Enter Github repository name", disabled=not connectivity_status,
-                                  value="")
-        pr_number = st.text_input("Enter Pullrequest number", disabled=not connectivity_status, value="")
+                                  value="showCasePr0b0t")
+        pr_number = st.text_input("Enter Pullrequest number", disabled=not connectivity_status, value="3")
 
         use_gpt_4 = st.checkbox("Use GPT-4 for the final prompt (STRONGLY recommended, requires GPT-4 API access - "
                                 "progress bar will appear to get stuck as GPT-4 is slow)", value=True,
@@ -66,10 +64,11 @@ def main():
         locally.</small>""", unsafe_allow_html=True)
 
         if st.button('Summarize (click once and wait)', disabled=not connectivity_status):
-            process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4, find_clusters)
+            summery_status = process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4, find_clusters)
 
-        # if st.button('Set PR comment!', disabled=not connectivity_status and is_summary_present()):
-        #     set_comment(github_api_key, repo_name, pr_number, st.session_state.summary)
+        if st.button('Set documentation as comment', disabled=not connectivity_status or not summery_status):
+            set_comment(github_api_key, repo_name, pr_number, st.session_state.summary)
+
     except Exception as e:
         logging.exception(e)
         st.write("An error occurred. Please contact the author.")
@@ -111,8 +110,8 @@ def process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_numb
 
     :return: None
     """
-    if not validate_input(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4):
-        return
+    # if not validate_input(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4):
+    #     return
     summary_container = st.empty()
     with st.spinner("Summarizing... please wait..."):
 
@@ -138,13 +137,12 @@ def process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_numb
 
         else:
             summary = doc_to_final_summary(doc, 10, initial_prompt_list, final_prompt_list, open_ai_api_key, use_gpt_4)
-        logging.debug("summary: %s", summary)
+        # logging.debug("summary: %s", summary)
         summary_container.markdown(summary, unsafe_allow_html=True)
+        with open('resources\\last_request.txt', 'w') as file:
+            file.write(summary)
         os.unlink(temp_file_path)
-
-
-# def is_summary_present():
-#     return 'summary' in st.session_state
+        return True
 
 
 @log_function_entry_exit

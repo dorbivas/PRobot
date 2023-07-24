@@ -1,5 +1,3 @@
-import logging
-
 import requests
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import TokenTextSplitter
@@ -9,17 +7,11 @@ from langchain.embeddings import OpenAIEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.chains.summarize import load_summarize_chain
 import streamlit as st
-
 from sklearn.cluster import KMeans
-
 import tiktoken
-
 import numpy as np
-
 import time
-
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from elbow import determine_optimal_clusters, calculate_inertia
 from log.app_log import log_function_entry_exit
 

@@ -1,8 +1,6 @@
 import logging
-
 import requests
 from github import Github
-
 from log.app_log import log_function_entry_exit
 
 

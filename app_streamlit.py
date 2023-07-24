@@ -1,31 +1,8 @@
 import logging
 import tempfile
-
-import PyPDF2
-
-from io import StringIO
-
 from langchain.chat_models import ChatOpenAI
-
 from app_openai import doc_to_text, token_counter
 from log.app_log import log_function_entry_exit
-
-
-@log_function_entry_exit
-def pdf_to_text(pdf_file):
-    """
-    Convert a PDF file to a string of text.
-
-    :param pdf_file: The PDF file to convert.
-
-    :return: A string of text.
-    """
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
-    text = StringIO()
-    for i in range(len(pdf_reader.pages)):
-        p = pdf_reader.pages[i]
-        text.write(p.extract_text())
-    return text.getvalue().encode('utf-8')
 
 
 @log_function_entry_exit
