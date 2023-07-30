@@ -66,11 +66,11 @@ def get_diff(api_key, repo_name, pull_request_number):
 
 # TODO: integrate this function into the main code
 @log_function_entry_exit
-def set_comment(repo_name, pull_request_number, comment):
+def set_comment(api_key, repo_name, pull_request_number, comment):
     print("set_comment")
-    # pull = self.data.get_user().get_repo(repo_name).get_pull(pull_request_number)
-    # # edit the comment with the necessary access
-    # pull.edit(body=comment)
+    data = Github(api_key)
+    pull = data.get_user().get_repo(repo_name).get_pull(int(pull_request_number))
+    pull.edit(body=comment)
 
 
 @log_function_entry_exit

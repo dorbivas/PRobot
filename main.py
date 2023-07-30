@@ -28,9 +28,9 @@ def main():
     init_logger()
 
     try:
-        st.title("Probot - Pullrequest summarizer")
-        # Create a Streamlit app
-        st.title("API Connectivity Status")
+        st.title("Probot - Pull request summarizer")
+        # make smaller title saying "API Connectivity Status"
+        st.markdown("## API Connectivity Status")
 
         render_check_connectivity()
         connectivity_status = is_check_connectivity()
@@ -48,9 +48,7 @@ def main():
                                   value="showCasePr0b0t")
         pr_number = st.text_input("Enter Pullrequest number", disabled=not connectivity_status, value="3")
 
-        use_gpt_4 = st.checkbox("Use GPT-4 for the final prompt (STRONGLY recommended, requires GPT-4 API access - "
-                                "progress bar will appear to get stuck as GPT-4 is slow)", value=True,
-                                disabled=not connectivity_status)
+        use_gpt_4 = st.checkbox("Use GPT-4 model (slower but recommended.)", value=True, disabled=not connectivity_status)
         find_clusters = st.checkbox('Find optimal clusters (experimental, could save on token usage)', value=False,
                                     disabled=not connectivity_status)
         st.sidebar.markdown('# Made by: ')
@@ -63,11 +61,13 @@ def main():
         API key. This site is open source, so you can check the code yourself, or run the streamlit app 
         locally.</small>""", unsafe_allow_html=True)
 
-        if st.button('Summarize (click once and wait)', disabled=not connectivity_status):
+        if st.button('Summarize the pull request', disabled=not connectivity_status):
             summery_status = process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4, find_clusters)
 
-        if st.button('Set documentation as comment', disabled=not connectivity_status or not summery_status):
-            set_comment(github_api_key, repo_name, pr_number, st.session_state.summary)
+        if st.button('Accept as pull request documentation', disabled=not connectivity_status or not summery_status):
+            with open('resources\\last_request.txt', 'r') as file:
+                summary = file.read()
+                set_comment(github_api_key,repo_name, pr_number, summary)
 
     except Exception as e:
         logging.exception(e)
