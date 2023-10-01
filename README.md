@@ -23,11 +23,11 @@ By automating the generation and injection of pull request messages, PR0B0T free
 
 ## Architecture
 Server: 
-- GitHubHandler - Github.py 
-- OpenAI, prompt generation - OpenAI.py
+- github: app_github.py
+- openai: app_openai.py & elbow.py
 
 Client, UI: 
-- console python UI: UI.py
+- Streamlit
 
 Insert a brief description of the project architecture here.
 
@@ -38,10 +38,21 @@ Insert instructions on how to get started with the project here, including any p
 
 To use PR0B0T, simply follow these steps:
 
+## Requirements:
+- Python 3.8.5
+    You can download Python from [here](https://www.python.org/downloads/)
+- Github user, github access token.
+- OpenAI api key. 
+- Credit card for OpenAI billing.
+
+# TODO: change make requirements.txt
+
+## Steps to run(Usage):
 1. Clone the PR0B0T repository to your local machine.
 2. Install the required dependencies by running `pip install -r requirements.txt` in your command prompt or terminal.
-3. Run the UI.py file to open the user-friendly console application.
-4. Follow the prompts in the console to generate and inject pull request messages using PR0B0T.
+3. Enter your OpenAI API key, Github access token, Github repository name, and the desired PR to document
+4. Press summarize and wait for the magic to happen.
+5. If accepted, the PR's documentation will be updated with the generated message.
 
 That's it! With PR0B0T, managing pull requests has never been easier.
 

@@ -1,175 +1,188 @@
-import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QTextEdit, QMessageBox
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+import os
 
-from GitHub import GitHubHandler
-from OpenAI import OpenAI
+import streamlit as st
 
-init_prompt = """
-You are an expert programmer, and you are trying to summarize a "git diff" files and commit messages for a Pull request documentation.
-Reminders about the git diff format:
-For each file, there are a few metadata lines, for example:
-\`\`\`
-diff --git a/lib/index.js b/lib/index.js
-index aadf691..bfef603 100644
---- a/lib/index.js  
-+++ b/lib/index.js
-\`\`\`
-This means that \`lib/index.js\` was modified in this commit. Note the example.
-Then there is a specifier of the lines that were modified.
-A line starting with \`+\` means it was added.
-A line that starting with \`-\` means that line was deleted.
-A line that starts with neither \`+\` nor \`-\` is code given for context and better understanding. 
-you will receive the commit message at the start for a reference of the subject pull request.
-remember to take commit message in corresponding to the diffs in order generate the best summary." 
-This is not part of the diffs nor the summery.
-do not print the diff files in the summary!.
-"""
+import logging
+import logging.config
 
-first_injection_prompt = """
-The following is a "git diff" of a single file 
-Please summarize it in a comment, describing the changes made in the diff in high level and short.
-respect the following rules:
-Write \`SUMMARY:\` and then write a summary of the changes made in the diff respecting the commit , as a bullet point list.
-Every bullet point should start with a \`* \`. :
-do not print the diff files in the summary!
-commit message:
-"""
+from app_github import test_github_api_connectivity, validate_github_inputs, get_diff, set_comment
 
-injection_prompt_rep = """
-here is a git diff of a single file.
-Please summarize it in a comment, describing the changes made in the diff in high level (and short) using only bullets \`* \` points.
-Do not write \`SUMMARY:\` anymore, this will be connected to the previous summary.
-respect the following rules:
-write a summary of the changes made in the diff, as a bullet point list.
-Every bullet point should start with a \`* \`. :
-do not write the following diff files in the summary!."""
+from app_openai import doc_loader, summary_prompt_creator, doc_to_final_summary, test_openai_api_connectivity
+
+from app_streamlit import check_gpt_4, check_key_validity, create_temp_file, create_chat_model, \
+    token_limit, token_minimum, check_gpt_3_5
+
+from app_prompts import file_map, file_combine
+from log.app_log import log_function_entry_exit, init_logger
 
 
+@log_function_entry_exit
+def main():
+    """
+    The main function for the Streamlit app.
 
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
+    :return: None.
+    """
 
-        self.setWindowTitle("Pull Request Summary Generator")
-        self.setGeometry(100, 100, 400, 400)
-        self.setStyleSheet("background-color: #FFFFFF;")
+    # Set up the logger as shown above
+    init_logger()
 
-        # Labels
-        self.label_token = QLabel("GitHub Token:", self)
-        self.label_token.move(20, 20)
-        self.label_token.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_token.setStyleSheet("color: #333333;")
+    try:
+        st.title("Probot - Pull request summarizer")
+        # make smaller title saying "API Connectivity Status"
+        st.markdown("## API Connectivity Status")
 
-        self.label_openai_token = QLabel("OpenAI Token:", self)
-        self.label_openai_token.move(20, 60)
-        self.label_openai_token.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_openai_token.setStyleSheet("color: #333333;")
+        render_check_connectivity()
+        connectivity_status = is_check_connectivity()
+        summery_status = False
+        # TODO: feature?
+        # input_method = st.radio("Select input method", ('Upload a document', 'Enter a YouTube URL'))
 
-        self.label_repo_name = QLabel("Repository Name:", self)
-        self.label_repo_name.move(20, 100)
-        self.label_repo_name.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_repo_name.setStyleSheet("color: #333333;")
+        open_ai_api_key = st.text_input("Enter Open-AI API key here, or contact the author if you don't have one.",
+                                        disabled=not connectivity_status,
+                                        value="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")
+        github_api_key = st.text_input("Enter Github API key here, or contact the author if you don't have one.",
+                                       disabled=not connectivity_status,
+                                       value="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")
+        repo_name = st.text_input("Enter Github repository name", disabled=not connectivity_status,
+                                  value="showCasePr0b0t")
+        pr_number = st.text_input("Enter Pullrequest number", disabled=not connectivity_status, value="3")
 
-        self.label_pr_number = QLabel("PR Number:", self)
-        self.label_pr_number.move(20, 140)
-        self.label_pr_number.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_pr_number.setStyleSheet("color: #333333;")
+        use_gpt_4 = st.checkbox("Use GPT-4 model (slower but recommended.)", value=True, disabled=not connectivity_status)
+        find_clusters = st.checkbox('Find optimal clusters (experimental, could save on token usage)', value=False,
+                                    disabled=not connectivity_status)
+        st.sidebar.markdown('# Made by: ')
+        st.sidebar.markdown('Auther 1: [Bivas Dor](https://github.com/dorbivas)')
+        st.sidebar.markdown('Auther 2: [Inon Dan](https://github.com/danninon)')
 
-        self.label_summary = QLabel("Pull Request Summary:", self)
-        self.label_summary.move(20, 180)
-        self.label_summary.setFont(QFont("Arial", 10, QFont.Bold))
-        self.label_summary.setStyleSheet("color: #333333;")
+        st.sidebar.markdown('# Git link: [Probot](https://github.com/dorbivas/PRobot)')
 
-        # Text Fields
-        self.text_token = QLineEdit(self)
-        self.text_token.setGeometry(150, 20, 200, 25)
+        st.sidebar.markdown("""<small>It's always good practice to verify that a website is safe before giving it your 
+        API key. This site is open source, so you can check the code yourself, or run the streamlit app 
+        locally.</small>""", unsafe_allow_html=True)
 
-        self.text_openai_token = QLineEdit(self)
-        self.text_openai_token.setGeometry(150, 60, 200, 25)
+        if st.button('Summarize the pull request', disabled=not connectivity_status):
+            summery_status = process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4, find_clusters)
 
-        self.text_repo_name = QLineEdit(self)
-        self.text_repo_name.setGeometry(150, 100, 200, 25)
+        if st.button('Accept as pull request documentation', disabled=not connectivity_status or not summery_status):
+            with open('resources\\last_request.txt', 'r') as file:
+                summary = file.read()
+                set_comment(github_api_key,repo_name, pr_number, summary)
 
-        self.text_pr_number = QLineEdit(self)
-        self.text_pr_number.setGeometry(150, 140, 200, 25)
+    except Exception as e:
+        logging.exception(e)
+        st.write("An error occurred. Please contact the author.")
 
-        # Buttons
-        self.button_generate_summary = QPushButton("Generate Pull Request Summary", self)
-        self.button_generate_summary.setGeometry(100, 340, 200, 30)
-        self.button_generate_summary.clicked.connect(self.generate_summary)
-        self.button_generate_summary.setStyleSheet("background-color: #007AFF; color: #FFFFFF; font-weight: bold;")
 
-        self.button_reset_summary = QPushButton("Reset Summary", self)
-        self.button_reset_summary.setGeometry(20, 340, 80, 30)
-        self.button_reset_summary.clicked.connect(self.reset_summary)
-        self.button_reset_summary.setStyleSheet("background-color: #007AFF; color: #FFFFFF; font-weight: bold;")
+@log_function_entry_exit
+def render_check_connectivity():
+    github_status = test_github_api_connectivity()
+    if github_status:
+        st.write("GitHub API: ✅ Connected")
+    else:
+        st.write("GitHub API: ❌ Not Connected")
 
-        self.button_set_body = QPushButton("Set Body", self)
-        self.button_set_body.setGeometry(310, 340, 80, 30)
-        self.button_set_body.clicked.connect(self.set_body)
-        self.button_set_body.setStyleSheet("background-color: #007AFF; color: #FFFFFF; font-weight: bold;")
+    # Check OpenAI API connectivity and display status
+    openai_status = test_openai_api_connectivity()
+    if openai_status:
+        st.write("OpenAI API: ✅ Connected")
+    else:
+        st.write("OpenAI API: ❌ Not Connected")
 
-        # Summary Text Edit
-        self.textedit_summary = QTextEdit(self)
-        self.textedit_summary.setGeometry(20, 200, 370, 130)
-        self.textedit_summary.setReadOnly(True)
-        self.textedit_summary.setStyleSheet("background-color: #F2F2F2; border: 1px solid #CCCCCC;")
 
-        self.openai = None
+def is_check_connectivity():
+    github_status = test_github_api_connectivity()
+    openai_status = test_openai_api_connectivity()
+    return github_status and openai_status
 
-    def generate_PR_summary(self, diffs, commit_message):
-        prompt = init_prompt
-        final_summary = ""
-        commit_injection = f"{commit_message} [commit message end]. do not quote it in the summary. \ndiff file:"
 
-        for diff in diffs:
-            if diff != diffs[0]:
-                prompt += injection_prompt_rep + diff
-                response = self.openai.generate_response(prompt)
-                prompt = prompt.replace(injection_prompt_rep, "")
-            else:
-                prompt += first_injection_prompt + commit_injection + diff
-                response = self.openai.generate_response(prompt)
-                prompt = prompt.replace(first_injection_prompt, "")
+@log_function_entry_exit
+def process_summarize_button(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4, find_clusters):
+    """
+    Processes the summarize button, and displays the summary if input and doc size are valid
+    :param open_ai_api_key: Open-AI API key
+    :param github_api_key: GitHub API key
+    :param repo_name: GitHub repository's Name
+    :param pr_number: Repository's requested Pullrequest number
+    :param use_gpt_4: Whether to use GPT-4 or not
 
-            if response:
-                final_summary += response
+    :param find_clusters: Whether to find optimal clusters or not, experimental
 
-        return final_summary
+    :return: None
+    """
+    # if not validate_input(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4):
+    #     return
+    summary_container = st.empty()
+    with st.spinner("Summarizing... please wait..."):
 
-    def generate_summary(self):
-        github_token = self.text_token.text()
-        openai_token = self.text_openai_token.text()
-        repo_name = self.text_repo_name.text()
+        git_diff, commit_message = get_diff(github_api_key, repo_name, pr_number)
 
-        try:
-            pr_number = int(self.text_pr_number.text())
-            github = GitHubHandler(github_token)
-            self.openai = OpenAI(openai_token)
-            diffs, commit_message = github.get_diff(repo_name, pr_number)
-            summary = self.generate_PR_summary(diffs, commit_message)
-            #save the summery to a file
-            with open("summary.txt", "w") as f:
-                f.write(summary)
+        temp_file_path = create_temp_file(git_diff)
 
-            self.textedit_summary.setPlainText(summary)
-        except Exception as e:
-            error_message = f"An error occurred: {str(e)}"
-            QMessageBox.critical(self, "Error", error_message)
+        doc = doc_loader(temp_file_path)
+        map_prompt = file_map
+        combine_prompt = file_combine
+
+        llm = create_chat_model(open_ai_api_key, use_gpt_4)
+        initial_prompt_list = summary_prompt_creator(map_prompt, 'text', llm)
+        final_prompt_list = summary_prompt_creator(combine_prompt, 'text', llm)
+
+        if not validate_doc_size(doc):
+            os.unlink(temp_file_path)
             return
 
-    def reset_summary(self):
-        self.textedit_summary.clear()
+        if find_clusters:
+            summary = doc_to_final_summary(doc, 10, initial_prompt_list, final_prompt_list, open_ai_api_key, use_gpt_4,
+                                           find_clusters)
 
-    def set_body(self):
-        pass
+        else:
+            summary = doc_to_final_summary(doc, 10, initial_prompt_list, final_prompt_list, open_ai_api_key, use_gpt_4)
+        # logging.debug("summary: %s", summary)
+        summary_container.markdown(summary, unsafe_allow_html=True)
+        with open('resources\\last_request.txt', 'w') as file:
+            file.write(summary)
+        os.unlink(temp_file_path)
+        return True
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")  # Use the Fusion style for a consistent look
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+@log_function_entry_exit
+def validate_doc_size(doc):
+    """
+    Validates the size of the document
+
+    :param doc: doc to validate
+
+    :return: True if the doc is valid, False otherwise
+    """
+    if not token_limit(doc, 800000):
+        st.warning('File or transcript too big!')
+        return False
+
+    if not token_minimum(doc, 10):
+        st.warning('File or transcript too small!')
+        return False
+    return True
+
+
+@log_function_entry_exit
+def validate_input(open_ai_api_key, github_api_key, repo_name, pr_number, use_gpt_4):
+    status = True
+    if not validate_github_inputs(github_api_key, repo_name, pr_number):
+        st.warning('GitHub inputs not valid or API is down.')
+        logging.warning('GitHub inputs not valid or API is down.')
+    if not check_key_validity(open_ai_api_key):
+        st.warning('OpenAI key not valid or API is down.')
+        logging.warning('OpenAI key not valid or API is down.')
+
+    if use_gpt_4 and not check_gpt_4(open_ai_api_key):
+        st.warning('Test Key not valid for GPT-4.')
+        status = False
+    else:
+        if not use_gpt_4 and not check_gpt_3_5(open_ai_api_key):
+            st.warning('Key not valid for GPT-3.5.')
+            status = False
+    return status
+
+
+if __name__ == '__main__':
+    main()
